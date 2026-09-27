@@ -1,0 +1,19 @@
+[Desktop Entry]
+Categories=Utility;
+Comment[es_ES]=Instala y actualiza AutoFirma y gestiona el almacén NSS y el certificado FNMT
+Comment=Instala y actualiza AutoFirma y gestiona el almacén NSS y el certificado FNMT
+Exec=sh -c 'cd "$(dirname "$1")" && ./instalar_autofirma.sh' _ %k
+GenericName[es_ES]=
+GenericName=
+Icon=application-x-executable
+MimeType=
+Name[es_ES]=Instalador de AutoFirma
+Name=Instalador de AutoFirma
+Path=
+PrefersNonDefaultGPU=false
+StartupNotify=true
+Terminal=false
+TerminalOptions=
+Type=Application
+X-KDE-SubstituteUID=false
+X-KDE-Username=
