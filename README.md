@@ -122,3 +122,19 @@ El instalador instala automáticamente, si faltan, las dependencias necesarias p
 - `curl` para la ruta de recuperación de la descarga oficial mientras el certificado HTTPS del portal esté caducado.
 
 La instalación solo se considera correcta después de comprobar `java`, `certutil`, `/usr/lib/AutoFirma` y `/usr/bin/AutoFirma -help`. Esta última comprobación es la que realmente certifica que la JRE instalada (17 o 21) es compatible con AutoFirma en tu sistema: no es una suposición documental, se ejecuta el binario de verdad.
+
+## Variante PyQt6 (KDE Plasma)
+
+Además de la versión Tkinter (`autofirma_gui.py` / `instalar_autofirma.sh`), este repo incluye una variante con interfaz PyQt6, pensada para integrarse mejor visualmente en KDE Plasma. La lógica de negocio (subprocess, pkexec, NSS, descarga oficial, verificación de huellas...) es idéntica; solo cambian la capa de interfaz y el mecanismo de concurrencia (QThread + señales en vez de threading + queue + polling).
+
+- `autofirma_gui_qt.py`: interfaz gráfica PyQt6.
+- `instalar_autofirma_qt.sh`: lanzador equivalente. Comprueba `python3-pyqt6` en vez de `python3-tk` (mismo mecanismo con `pkexec`).
+
+Uso:
+
+```bash
+chmod +x instalar_autofirma_qt.sh
+./instalar_autofirma_qt.sh
+```
+
+Probada en máquina real: funciona correctamente.
