@@ -52,8 +52,14 @@ El recurso de AutoFirma debe proceder del dominio oficial `firmaelectronica.gob.
 Dependencias principales:
 
 - Python 3
-- Tkinter
-- PolicyKit / `pkexec`
+- Tkinter (paquete `python3-tk` en Debian; **no** viene incluido con Python 3 por defecto). Si falta, la aplicación no abre ninguna ventana y no muestra ningún error visible salvo que se lance desde una terminal. `instalar_autofirma.sh` detecta esto automáticamente y ofrece instalar `python3-tk` mediante `pkexec apt install python3-tk` antes de arrancar la GUI. Instalación manual:
+  ```bash
+  sudo apt install python3-tk
+  ```
+- PolicyKit / `pkexec` (paquete `policykit-1`). Es el mecanismo que usa la aplicación para pedir la contraseña de administrador con una ventana gráfica (en vez de `sudo` en terminal) al instalar/actualizar AutoFirma o instalar `python3-tk`. Si falta el paquete, o el servicio `polkitd` no está corriendo en la sesión, aparece el error "No se encuentra pkexec. Instala policykit-1 o ejecuta la aplicación desde un entorno Debian con PolicyKit disponible." al pulsar cualquier botón que necesite privilegios. `instalar_autofirma.sh` comprueba esto al arrancar e intenta instalar `policykit-1` automáticamente con `sudo apt install policykit-1` si falta. Nota: si el paquete ya estaba instalado pero el servicio no había arrancado en la sesión actual (por ejemplo, tras una instalación reciente sin reiniciar sesión), el error puede aparecer igualmente hasta cerrar sesión o reiniciar; una actualización del sistema (`apt upgrade`) o un reinicio posterior suele resolverlo sin intervención adicional. Instalación manual:
+  ```bash
+  sudo apt install policykit-1
+  ```
 - `curl`/red de Python
 - `unzip`
 - `openssl`
