@@ -85,6 +85,23 @@ Regla conservadora:
 - no se vacía;
 - no se inicializa de nuevo.
 
+## Confianza de AutoFirma ROOT en navegadores
+
+La interfaz PyQt6 incluye la acción **«Confiar cert. en navegadores»** para registrar el certificado local `AutoFirma_ROOT.cer` generado por AutoFirma como certificado de confianza SSL en los almacenes NSS de los navegadores detectados.
+
+La acción:
+
+- Utiliza `/usr/lib/Autofirma/Autofirma_ROOT.cer`.
+- Comprueba la huella SHA-256 del certificado antes de modificar los almacenes.
+- Detecta el almacén NSS compartido `~/.pki/nssdb`, utilizado por Chrome/Chromium/Brave.
+- Detecta los perfiles de Firefox que contienen `cert9.db` y trabaja con cada perfil encontrado.
+- Si el certificado ya existe pero no tiene confianza SSL, corrige sus atributos de confianza en lugar de duplicarlo.
+- Si ya está presente y correctamente confiado, no vuelve a importarlo.
+- Verifica después de cada operación que el certificado existe y tiene confianza SSL (`C` o `T`).
+- No elimina ni vacía los almacenes NSS existentes.
+
+Después de confiar el certificado, hay que **cerrar completamente Firefox y Chrome/Chromium/Brave** y volver a abrirlos antes de probar una firma web.
+
 ## Certificado FNMT
 
 La importación es opcional.
