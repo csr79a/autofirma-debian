@@ -30,12 +30,14 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from PyQt6.QtCore import QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QApplication,
     QDialog,
     QFileDialog,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -43,7 +45,9 @@ from PyQt6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPlainTextEdit,
+    QProgressBar,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -820,8 +824,8 @@ class AutoFirmaWindow(QMainWindow):
         super().__init__()
         self.core = AutoFirmaCore()
         self.setWindowTitle("Instalador de AutoFirma — Debian (PyQt6)")
-        self.resize(820, 620)
-        self.setMinimumSize(760, 560)
+        self.resize(1150, 950)
+        self.setMinimumSize(900, 720)
         self.worker = None
 
         self._build_ui()
@@ -836,59 +840,86 @@ class AutoFirmaWindow(QMainWindow):
         outer.setContentsMargins(18, 18, 18, 18)
 
         title = QLabel("AutoFirma para Debian")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title.setFont(QFont("Sans", 22, QFont.Weight.Bold))
         outer.addWidget(title)
+        outer.addWidget(QLabel("Instalación, actualización, NSS y certificado FNMT en una sola aplicación."))
 
-        subtitle = QLabel("Instalación, actualización, NSS y certificado FNMT en una sola aplicación.")
-        outer.addWidget(subtitle)
-
-        status_box = QGroupBox("Estado")
-        status_form = QFormLayout()
-        status_box.setLayout(status_form)
-
+        # Etiquetas de estado (mismos nombres que antes: _on_status las
+        # localiza por getattr(self, f"lbl_{name}")).
         self.lbl_version_instalada = QLabel("Comprobando…")
         self.lbl_version_oficial = QLabel("No comprobada")
         self.lbl_nss_estado = QLabel("Comprobando…")
         self.lbl_cert_estado = QLabel("No comprobado")
         self.lbl_trust_estado = QLabel("No comprobado")
 
-        status_form.addRow("AutoFirma instalada:", self.lbl_version_instalada)
-        status_form.addRow("Versión oficial:", self.lbl_version_oficial)
-        status_form.addRow("Almacén NSS:", self.lbl_nss_estado)
-        status_form.addRow("Certificado FNMT:", self.lbl_cert_estado)
-        status_form.addRow("Cert. en navegadores:", self.lbl_trust_estado)
+        def make_card(head, desc, rows, button_text, slot):
+            box = QGroupBox(head)
+            box.setMinimumHeight(250)
+            lay = QVBoxLayout(box)
+            lay.setContentsMargins(14, 14, 14, 14)
+            lay.setSpacing(6)
+            d = QLabel(desc)
+            d.setWordWrap(True)
+            lay.addWidget(d)
+            lay.addSpacing(6)
+            # Etiqueta y valor en dos QLabel apilados (sin QFormLayout): el
+            # valor reserva alto para 3 líneas, así el texto ajustado nunca
+            # se monta ni se recorta.
+            alto_valor = self.fontMetrics().lineSpacing() * 3 + 6
+            for label, widget in rows:
+                cap = QLabel(label)
+                cap.setStyleSheet("font-weight: bold;")
+                lay.addWidget(cap)
+                widget.setWordWrap(True)
+                widget.setMinimumHeight(alto_valor)
+                widget.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
+                widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
+                lay.addWidget(widget)
+            lay.addStretch()
+            btn = QPushButton(button_text)
+            btn.setMinimumHeight(36)
+            btn.clicked.connect(slot)
+            lay.addWidget(btn)
+            return box, btn
 
-        outer.addWidget(status_box)
+        card1, self.btn_install = make_card(
+            "AutoFirma", "Instala o actualiza desde la página oficial",
+            [("Instalada:", self.lbl_version_instalada),
+             ("Versión oficial:", self.lbl_version_oficial)],
+            "Instalar / actualizar AutoFirma", self.install_or_update,
+        )
+        card2, self.btn_nss = make_card(
+            "NSS", "Crea o revisa ~/.pki/nssdb",
+            [("Almacén NSS:", self.lbl_nss_estado)],
+            "Comprobar NSS", self.ensure_nss,
+        )
+        card3, self.btn_cert = make_card(
+            "Certificado", "Añade tu .p12 / .pfx al almacén",
+            [("Certificado FNMT:", self.lbl_cert_estado)],
+            "Importar certificado FNMT", self.import_certificate,
+        )
+        card4, self.btn_trust = make_card(
+            "Navegadores", "Confía en AutoFirma ROOT",
+            [("Cert. en navegadores:", self.lbl_trust_estado)],
+            "Confiar cert. en navegadores", self.trust_root_cert,
+        )
 
-        actions_box = QGroupBox("Acciones")
-        actions_layout = QHBoxLayout()
-        actions_box.setLayout(actions_layout)
-
-        self.btn_install = QPushButton("Instalar / actualizar AutoFirma")
-        self.btn_nss = QPushButton("Comprobar NSS")
-        self.btn_cert = QPushButton("Importar certificado FNMT")
-        self.btn_trust = QPushButton("Confiar cert. en navegadores")
-
-        self.btn_install.clicked.connect(self.install_or_update)
-        self.btn_nss.clicked.connect(self.ensure_nss)
-        self.btn_cert.clicked.connect(self.import_certificate)
-        self.btn_trust.clicked.connect(self.trust_root_cert)
-
-        for b in (self.btn_install, self.btn_nss, self.btn_cert, self.btn_trust):
-            actions_layout.addWidget(b)
-        actions_layout.addStretch()
-
-        outer.addWidget(actions_box)
-
-        log_box = QGroupBox("Progreso")
-        log_layout = QVBoxLayout()
-        log_box.setLayout(log_layout)
+        grid = QGridLayout()
+        for i, card in enumerate((card1, card2, card3, card4)):
+            grid.addWidget(card, i // 2, i % 2)
+        grid.setSpacing(10)
+        outer.addLayout(grid, stretch=2)
 
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
-        log_layout.addWidget(self.log_view)
+        self.log_view.setFont(QFont("Monospace", 12))
+        self.log_view.setMinimumHeight(260)
+        outer.addWidget(self.log_view, stretch=3)
 
-        outer.addWidget(log_box, stretch=1)
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 0)
+        self.progress.hide()
+        outer.addWidget(self.progress)
 
         bottom = QHBoxLayout()
         bottom.addWidget(QLabel("Fuente: firmaelectronica.gob.es"))
@@ -921,6 +952,7 @@ class AutoFirmaWindow(QMainWindow):
         if self.worker is not None and self.worker.isRunning():
             return
         self._set_buttons(False)
+        self.progress.show()
         self.worker = Worker(fn)
         self.worker.log.connect(self._append_log)
         self.worker.status.connect(self._on_status)
@@ -935,10 +967,12 @@ class AutoFirmaWindow(QMainWindow):
             widget.setText(value)
 
     def _on_done(self):
+        self.progress.hide()
         self._set_buttons(True)
         self._refresh_status()
 
     def _on_error(self, message):
+        self.progress.hide()
         self._set_buttons(True)
         self._append_log("ERROR: " + message)
         QMessageBox.critical(self, "AutoFirma", message)
@@ -963,8 +997,7 @@ class AutoFirmaWindow(QMainWindow):
             if autofirma_cmd:
                 try:
                     subprocess.Popen(
-                        [autofirma_cmd], stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL, start_new_session=True,
+                        [autofirma_cmd], stdout=subprocess.DEVNULL,                        stderr=subprocess.DEVNULL, start_new_session=True,
                     )
                     worker.log.emit("Abriendo AutoFirma…")
                 except Exception as launch_exc:
