@@ -2,13 +2,13 @@
 Categories=Utility;
 Comment[es_ES]=Instala y actualiza AutoFirma y gestiona el almacén NSS y el certificado FNMT
 Comment=Instala y actualiza AutoFirma y gestiona el almacén NSS y el certificado FNMT
-Exec=sh -c 'cd "$(dirname "$1")" && ./instalar_autofirma.sh' _ %k
+Exec=sh -c 'cd "$(dirname "$1")" && ./instalar_autofirma_qt.sh' _ %k
 GenericName[es_ES]=
 GenericName=
 Icon=application-x-executable
 MimeType=
-Name[es_ES]=Instalador de AutoFirma
-Name=Instalador de AutoFirma
+Name[es_ES]=Instalador de AutoFirma (PyQt6)
+Name=Instalador de AutoFirma (PyQt6)
 Path=
 PrefersNonDefaultGPU=false
 StartupNotify=true
