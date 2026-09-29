@@ -16,17 +16,18 @@ Instalador gráfico para Debian y derivados que reúne en una sola aplicación:
 
 ## Archivos
 
-- `instalar_autofirma.sh`: lanzador principal.
-- `autofirma_gui.py`: interfaz gráfica y lógica del instalador.
-- `autofirma.desktop`: acceso opcional al menú de aplicaciones.
+- `instalar_autofirma_qt.sh`: lanzador principal de la interfaz PyQt6.
+- `autofirma_gui_qt.py`: interfaz gráfica y lógica del instalador.
+- `autofirma.desktop`: acceso al menú de aplicaciones, configurado para abrir la versión PyQt6.
+- `instalar_autofirma.sh`: lanzador de compatibilidad que redirige a la versión PyQt6.
 
 ## Uso
 
 Desde el directorio del proyecto:
 
 ```bash
-chmod +x instalar_autofirma.sh
-./instalar_autofirma.sh
+chmod +x instalar_autofirma_qt.sh
+./instalar_autofirma_qt.sh
 ```
 
 El instalador utiliza PolicyKit (`pkexec`) para las operaciones que necesitan privilegios de administrador.
@@ -52,11 +53,11 @@ El recurso de AutoFirma debe proceder del dominio oficial `firmaelectronica.gob.
 Dependencias principales:
 
 - Python 3
-- Tkinter (paquete `python3-tk` en Debian; **no** viene incluido con Python 3 por defecto). Si falta, la aplicación no abre ninguna ventana y no muestra ningún error visible salvo que se lance desde una terminal. `instalar_autofirma.sh` detecta esto automáticamente y ofrece instalar `python3-tk` mediante `pkexec apt install python3-tk` antes de arrancar la GUI. Instalación manual:
+- PyQt6 (paquete `python3-pyqt6` en Debian). Si falta, `instalar_autofirma_qt.sh` lo detecta e intenta instalarlo mediante `pkexec apt install python3-pyqt6` antes de arrancar la GUI. Instalación manual:
   ```bash
-  sudo apt install python3-tk
+  sudo apt install python3-pyqt6
   ```
-- PolicyKit / `pkexec` (paquete `policykit-1`). Es el mecanismo que usa la aplicación para pedir la contraseña de administrador con una ventana gráfica (en vez de `sudo` en terminal) al instalar/actualizar AutoFirma o instalar `python3-tk`. Si falta el paquete, o el servicio `polkitd` no está corriendo en la sesión, aparece el error "No se encuentra pkexec. Instala policykit-1 o ejecuta la aplicación desde un entorno Debian con PolicyKit disponible." al pulsar cualquier botón que necesite privilegios. `instalar_autofirma.sh` comprueba esto al arrancar e intenta instalar `policykit-1` automáticamente con `sudo apt install policykit-1` si falta. Nota: si el paquete ya estaba instalado pero el servicio no había arrancado en la sesión actual (por ejemplo, tras una instalación reciente sin reiniciar sesión), el error puede aparecer igualmente hasta cerrar sesión o reiniciar; una actualización del sistema (`apt upgrade`) o un reinicio posterior suele resolverlo sin intervención adicional. Instalación manual:
+- PolicyKit / `pkexec` (paquete `policykit-1`). Es el mecanismo que usa la aplicación para pedir la contraseña de administrador con una ventana gráfica (en vez de `sudo` en terminal) al instalar/actualizar AutoFirma o instalar `python3-pyqt6`. Si falta el paquete, o el servicio `polkitd` no está corriendo en la sesión, aparece el error "No se encuentra pkexec. Instala policykit-1 o ejecuta la aplicación desde un entorno Debian con PolicyKit disponible." al pulsar cualquier botón que necesite privilegios. `instalar_autofirma_qt.sh` comprueba esto al arrancar e intenta instalar `policykit-1` automáticamente con `sudo apt install policykit-1` si falta. Nota: si el paquete ya estaba instalado pero el servicio no había arrancado en la sesión actual (por ejemplo, tras una instalación reciente sin reiniciar sesión), el error puede aparecer igualmente hasta cerrar sesión o reiniciar; una actualización del sistema (`apt upgrade`) o un reinicio posterior suele resolverlo sin intervención adicional. Instalación manual:
   ```bash
   sudo apt install policykit-1
   ```
@@ -123,12 +124,16 @@ El instalador instala automáticamente, si faltan, las dependencias necesarias p
 
 La instalación solo se considera correcta después de comprobar `java`, `certutil`, `/usr/lib/AutoFirma` y `/usr/bin/AutoFirma -help`. Esta última comprobación es la que realmente certifica que la JRE instalada (17 o 21) es compatible con AutoFirma en tu sistema: no es una suposición documental, se ejecuta el binario de verdad.
 
-## Variante PyQt6 (KDE Plasma)
+## Interfaz gráfica PyQt6
 
-Además de la versión Tkinter (`autofirma_gui.py` / `instalar_autofirma.sh`), este repo incluye una variante con interfaz PyQt6, pensada para integrarse mejor visualmente en KDE Plasma. La lógica de negocio (subprocess, pkexec, NSS, descarga oficial, verificación de huellas...) es idéntica; solo cambian la capa de interfaz y el mecanismo de concurrencia (QThread + señales en vez de threading + queue + polling).
+La versión PyQt6 es la interfaz gráfica principal de este repositorio y está pensada para integrarse mejor visualmente en KDE Plasma. La lógica de negocio incluye instalación/actualización de AutoFirma, NSS, certificados, descarga oficial y verificación de huellas.
 
 - `autofirma_gui_qt.py`: interfaz gráfica PyQt6.
-- `instalar_autofirma_qt.sh`: lanzador equivalente. Comprueba `python3-pyqt6` en vez de `python3-tk` (mismo mecanismo con `pkexec`).
+- `instalar_autofirma_qt.sh`: lanzador principal. Comprueba e instala `python3-pyqt6` cuando es necesario.
+- `autofirma.desktop`: acceso al menú de aplicaciones que abre el lanzador PyQt6.
+- `instalar_autofirma.sh`: compatibilidad con instalaciones/comandos anteriores; simplemente redirige al lanzador PyQt6.
+
+La antigua interfaz Tkinter (`autofirma_gui.py`) ya no forma parte del proyecto.
 
 Uso:
 
