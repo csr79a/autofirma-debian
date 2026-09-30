@@ -531,10 +531,10 @@ class AutoFirmaCore:
             p = self._run(install_args, sudo=True, check=False, log=log)
             if p.returncode != 0:
                 detail = p.stdout.decode(errors="replace").strip()
-                if p.returncode == 126:
+                if p.returncode == 127:
                     raise RuntimeError(
-                        "No se pudo ejecutar pkexec para instalar AutoFirma (código 126). "
-                        "Comprueba que polkitd y un agente gráfico de autenticación estén activos."
+                        "pkexec no pudo obtener autorización para instalar AutoFirma (código 127). "
+                        "Comprueba que polkitd y un agente gráfico de autenticación de PolicyKit estén activos."
                         + (f"\n\n{detail}" if detail else "")
                     )
                 raise RuntimeError(
