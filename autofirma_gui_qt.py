@@ -227,7 +227,7 @@ class AutoFirmaCore:
         log("Instalando dependencias necesarias: " + ", ".join(missing))
         p = self._run(["apt-get", "install", "-y"] + missing, sudo=True, check=False, log=log)
         if p.returncode != 0:
-            detail = p.stderr.decode(errors="replace").strip()
+            detail = p.stdout.decode(errors="replace").strip()
             raise RuntimeError("No se pudieron instalar las dependencias de AutoFirma." + (f"\n\n{detail}" if detail else ""))
 
         if not self._command_exists("java"):
