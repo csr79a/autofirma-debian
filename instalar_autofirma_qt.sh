@@ -16,7 +16,7 @@ if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) e
     exit 1
 fi
 
-# pkexec (paquete policykit-1) es necesario para las operaciones con
+# pkexec y polkitd son necesarios para las operaciones con
 # privilegios de administrador, incluida la propia instalación de
 # python3-pyqt6 más abajo. Se comprueba primero por eso.
 if ! command -v pkexec >/dev/null 2>&1 || ! command -v polkitd >/dev/null 2>&1; then
@@ -34,7 +34,7 @@ if ! command -v pkexec >/dev/null 2>&1 || ! command -v polkitd >/dev/null 2>&1; 
         fi
     else
         echo "ERROR: no se encuentra apt o sudo para instalar la dependencia."
-        echo "Instálalo manualmente con: sudo apt install policykit-1"
+        echo "Instálalos manualmente con: sudo apt install pkexec polkitd"
         exit 1
     fi
 fi
