@@ -10,8 +10,8 @@ if [[ "${EUID}" -eq 0 ]]; then
     exit 1
 fi
 
-if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)'; then
-    echo "ERROR: este instalador necesita Python 3.9 o superior."
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) else 1)'; then
+    echo "ERROR: este instalador necesita Python 3.10 o superior."
     python3 --version
     exit 1
 fi
