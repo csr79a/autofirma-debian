@@ -575,12 +575,10 @@ class AutoFirmaCore:
         log(f"NSS creado: {NSS_DIR}")
         return "Creado (contraseña vacía)"
 
-    def nss_fingerprints(self, db_dir=None):
-        if db_dir is None:
-            db_dir = NSS_DIR
+    def _certutil_list_entries(self, db_dir):
+        """Devuelve [(nickname, trust)] sin asumir un número fijo de líneas."""
         if not Path(db_dir).is_dir():
             return []
-
         p = subprocess.run(
             ["certutil", "-L", "-d", f"sql:{db_dir}"],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
@@ -597,19 +595,25 @@ class AutoFirmaCore:
         if header is None:
             return []
 
-        names = []
+        entries = []
         for line in lines[header + 1:]:
             line = line.rstrip()
             if not line or set(line) <= {"-", " "}:
                 continue
-            m = re.match(r"^(.*?)\s{2,}([A-Za-z,]*)$", line)
-            if m:
-                name = m.group(1).strip()
+            match = re.match(r"^(.*?)\s{2,}([A-Za-z,]*)$", line)
+            if match:
+                name, trust = match.groups()
+                name = name.strip()
                 if name:
-                    names.append(name)
+                    entries.append((name, trust.strip()))
+        return entries
+
+    def nss_fingerprints(self, db_dir=None):
+        if db_dir is None:
+            db_dir = NSS_DIR
 
         result = []
-        for name in names:
+        for name, _ in self._certutil_list_entries(db_dir):
             try:
                 c = subprocess.run(
                     ["certutil", "-L", "-d", f"sql:{db_dir}", "-n", name, "-a"],
@@ -758,31 +762,10 @@ class AutoFirmaCore:
     def _nss_trust_flags(self, db_dir):
         """Nickname -> primer campo (SSL) de sus Trust Attributes: 'C'/'T' =
         CA de confianza SSL; 'c' = CA válida pero SIN marcar; '' = sin datos."""
-        p = subprocess.run(
-            ["certutil", "-L", "-d", f"sql:{db_dir}"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-        )
-        if p.returncode != 0:
-            return {}
-        lines = p.stdout.splitlines()
-        header = next(
-            (i for i, line in enumerate(lines)
-             if "Certificate Nickname" in line and "Trust Attributes" in line),
-            None,
-        )
-        if header is None:
-            return {}
-        flags = {}
-        for line in lines[header + 1:]:
-            line = line.rstrip()
-            if not line or set(line) <= {"-", " "}:
-                continue
-            m = re.match(r"^(.*?)\s{2,}([A-Za-z,]*)$", line)
-            if m:
-                name, trust = m.groups()
-                name = name.strip()
-                flags[name] = trust.split(",")[0] if trust else ""
-        return flags
+        return {
+            name: (trust.split(",")[0] if trust else "")
+            for name, trust in self._certutil_list_entries(db_dir)
+        }
 
     def trust_root_cert(self, log=lambda t: None, status=lambda n, v: None):
         if not AUTOFIRMA_ROOT_CERT.is_file():
