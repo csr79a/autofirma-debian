@@ -721,7 +721,7 @@ class AutoFirmaCore:
         ~/.pki/nssdb (Chrome/Chromium/Brave) + cada perfil de Firefox
         encontrado (Firefox mantiene su propio cert9.db por perfil)."""
         targets = []
-        if NSS_DIR.is_dir():
+        if (NSS_DIR / "cert9.db").is_file():
             targets.append(("NSS compartido (Chrome/Chromium/Brave)", NSS_DIR))
 
         xdg_config_home = Path(os.environ.get("XDG_CONFIG_HOME", "") or (Path.home() / ".config"))
@@ -1024,7 +1024,10 @@ class AutoFirmaWindow(QMainWindow):
         except Exception:
             self.lbl_version_instalada.setText("No disponible")
 
-        self.lbl_nss_estado.setText("Existe (no se modifica)" if NSS_DIR.is_dir() else "No existe")
+        self.lbl_nss_estado.setText(
+            "Existe (no se modifica)" if (NSS_DIR / "cert9.db").is_file()
+            else ("Directorio existe; NSS no inicializado" if NSS_DIR.is_dir() else "No existe")
+        )
         self.lbl_cert_estado.setText(self.core.find_fnmt_status())
 
     # ---------- Ejecución en segundo plano ----------
