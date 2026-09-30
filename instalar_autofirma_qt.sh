@@ -16,11 +16,6 @@ if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 10) e
     exit 1
 fi
 
-command -v python3 >/dev/null 2>&1 || {
-    echo "ERROR: Python 3 no está instalado."
-    exit 1
-}
-
 # pkexec (paquete policykit-1) es necesario para las operaciones con
 # privilegios de administrador, incluida la propia instalación de
 # python3-pyqt6 más abajo. Se comprueba primero por eso.
