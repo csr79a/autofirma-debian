@@ -72,6 +72,11 @@ AUTOFIRMA_ROOT_CERT = Path("/usr/lib/Autofirma/Autofirma_ROOT.cer")
 AUTOFIRMA_ROOT_NICKNAME = "AutoFirma ROOT"
 
 
+class OfficialCertificateExpiredError(RuntimeError):
+    """El portal oficial rechazó TLS específicamente por certificado caducado."""
+
+
+
 # =======================================================================
 # Lógica de negocio — sin ninguna dependencia de Qt, para poder llamarla
 # desde un QThread sin tocar widgets desde fuera del hilo principal.
@@ -291,12 +296,9 @@ class AutoFirmaCore:
             # Nunca hacemos fallback a verify=False.
             detail = str(exc)
             if "certificate has expired" in detail.lower():
-                raise RuntimeError(
-                    "El servidor oficial de AutoFirma presenta un certificado HTTPS caducado.\n\n"
-                    "La fecha/hora de este equipo es correcta y los certificados CA del sistema "
-                    "están disponibles, por lo que no se modificará nada ni se realizará una "
-                    "descarga insegura.\n\n"
-                    "Cuando el portal oficial renueve su certificado, vuelve a ejecutar el instalador."
+                raise OfficialCertificateExpiredError(
+                    "El servidor oficial de AutoFirma presenta un certificado HTTPS caducado. "
+                    "La fecha/hora del equipo y el almacén CA ya se han comprobado."
                 ) from exc
             raise RuntimeError(
                 "No se pudo verificar el certificado HTTPS de la página oficial.\n\n"
@@ -334,10 +336,7 @@ class AutoFirmaCore:
         log("Consultando la página oficial de AutoFirma…")
         try:
             html = self._check_official_https(log)
-        except RuntimeError as exc:
-            message = str(exc).lower()
-            if "certificado https caducado" not in message and "certificate has expired" not in message:
-                raise
+        except OfficialCertificateExpiredError:
             log(
                 "El portal oficial presenta un certificado HTTPS caducado. "
                 "Se usará la descarga oficial fijada de AutoFirma 1.9 y se verificará su SHA-256."
@@ -397,7 +396,11 @@ class AutoFirmaCore:
                         f"Esperado: {expected_size} bytes\nRecibido: {size} bytes"
                     )
 
-                digest = hashlib.sha256(target.read_bytes()).hexdigest().lower()
+                hasher = hashlib.sha256()
+                with target.open("rb") as source:
+                    for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                        hasher.update(chunk)
+                digest = hasher.hexdigest().lower()
                 if digest != expected_sha256.lower():
                     raise RuntimeError(
                         "La descarga oficial no coincide con la huella SHA-256 esperada. "
