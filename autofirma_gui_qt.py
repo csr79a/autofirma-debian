@@ -385,6 +385,14 @@ class AutoFirmaCore:
         if not candidates:
             raise RuntimeError("La página oficial respondió correctamente, pero no se encontró el paquete Debian de AutoFirma.")
 
+        def version_key(url):
+            name = Path(urllib.parse.urlparse(url).path).name
+            match = re.search(r"autofirma[_-]v?(\d+(?:\.\d+)*)", name, re.I)
+            if not match:
+                return (0,)
+            return (1,) + tuple(int(part) for part in match.group(1).split("."))
+
+        candidates.sort(key=version_key, reverse=True)
         return candidates[0], "zip", None, None
 
     def download_deb(self, log=lambda t: None):
@@ -545,10 +553,16 @@ class AutoFirmaCore:
     # ---------- NSS ----------
 
     def ensure_nss(self, log=lambda t: None):
-        if NSS_DIR.exists():
-            log(f"NSS ya existe: {NSS_DIR}")
+        cert9 = NSS_DIR / "cert9.db"
+        if cert9.is_file():
+            log(f"NSS ya existe y contiene cert9.db: {NSS_DIR}")
             log("No se recrea, no se borra y no se modifica.")
             return "Existe (no se modifica)"
+
+        if NSS_DIR.exists():
+            log(f"El directorio NSS existe, pero no contiene cert9.db: {NSS_DIR}")
+            log("No se modifica automáticamente un almacén existente.")
+            return "Directorio existe; NSS no inicializado"
 
         log("Creando almacén NSS nuevo con contraseña vacía…")
         NSS_DIR.mkdir(parents=True, exist_ok=True)
@@ -634,13 +648,25 @@ class AutoFirmaCore:
     def cert_fingerprint(self, cert_file, password):
         # La contraseña entra por stdin: no se guarda en disco ni aparece
         # como argumento de proceso.
+        base_cmd = [
+            "openssl", "pkcs12", "-in", str(cert_file),
+            "-clcerts", "-nokeys", "-passin", "stdin",
+        ]
         p = subprocess.run(
-            ["openssl", "pkcs12", "-in", str(cert_file), "-clcerts", "-nokeys", "-passin", "stdin"],
+            base_cmd,
             input=(password + "\n").encode(),
             stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
         if p.returncode != 0:
-            raise RuntimeError("No se pudo abrir el certificado. Comprueba la contraseña.")
+            legacy_cmd = base_cmd.copy()
+            legacy_cmd.insert(2, "-legacy")
+            p = subprocess.run(
+                legacy_cmd,
+                input=(password + "\n").encode(),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            )
+        if p.returncode != 0:
+            raise RuntimeError("No se pudo abrir el certificado. Comprueba la contraseña y que el archivo PKCS#12 sea válido.")
         x = subprocess.run(
             ["openssl", "x509", "-noout", "-fingerprint", "-sha256"],
             input=p.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True,
@@ -1071,7 +1097,10 @@ class AutoFirmaWindow(QMainWindow):
             if autofirma_cmd:
                 try:
                     subprocess.Popen(
-                        [autofirma_cmd], stdout=subprocess.DEVNULL,                        stderr=subprocess.DEVNULL, start_new_session=True,
+                        [autofirma_cmd],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                        start_new_session=True,
                     )
                     worker.log.emit("Abriendo AutoFirma…")
                 except Exception as launch_exc:
@@ -1089,7 +1118,7 @@ class AutoFirmaWindow(QMainWindow):
         self._run_async(task)
 
     def import_certificate(self):
-        if not NSS_DIR.is_dir():
+        if not (NSS_DIR / "cert9.db").is_file():
             resp = QMessageBox.question(
                 self, "Almacén NSS",
                 "No existe el almacén NSS.\n\n¿Quieres crearlo ahora con contraseña vacía?",
@@ -1121,15 +1150,32 @@ class AutoFirmaWindow(QMainWindow):
         # closure de task(): igual que en la versión Tkinter, evita dejar la
         # contraseña viva más tiempo del necesario.
         secret = dialog.password()
+        secret_for_task = secret
+        secret = None
 
         def task(worker):
-            info_msg = self.core.import_certificate(
-                cert_file, secret, log=worker.log.emit, status=worker.status.emit,
-            )
-            worker.info.emit(info_msg)
-            worker.done.emit()
+            nonlocal secret_for_task
+            try:
+                info_msg = self.core.import_certificate(
+                    cert_file, secret_for_task, log=worker.log.emit, status=worker.status.emit,
+                )
+                worker.info.emit(info_msg)
+                worker.done.emit()
+            finally:
+                secret_for_task = None
 
         self._run_async(task)
+
+    def closeEvent(self, event):
+        if self.worker is not None and self.worker.isRunning():
+            QMessageBox.warning(
+                self,
+                "Operación en curso",
+                "Hay una operación en segundo plano ejecutándose. Espera a que termine antes de cerrar la aplicación.",
+            )
+            event.ignore()
+            return
+        event.accept()
 
     def trust_root_cert(self):
         def task(worker):
@@ -1141,7 +1187,11 @@ class AutoFirmaWindow(QMainWindow):
 
 
 def main():
-    app = QApplication([])
+    app = QApplication(sys.argv)
+    app.setApplicationName("AutoFirma Debian")
+    app.setOrganizationName("csr79a")
+    if hasattr(app, "setDesktopFileName"):
+        app.setDesktopFileName("autofirma")
     window = AutoFirmaWindow()
     window.show()
     app.exec()
