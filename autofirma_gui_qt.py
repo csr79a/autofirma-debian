@@ -536,14 +536,25 @@ class AutoFirmaCore:
         if p.returncode != 0:
             return []
 
+        lines = p.stdout.splitlines()
+        header = next(
+            (i for i, line in enumerate(lines)
+             if "Certificate Nickname" in line and "Trust Attributes" in line),
+            None,
+        )
+        if header is None:
+            return []
+
         names = []
-        for line in p.stdout.splitlines()[3:]:
+        for line in lines[header + 1:]:
             line = line.rstrip()
-            if not line:
+            if not line or set(line) <= {"-", " "}:
                 continue
-            name = re.sub(r"\s+[A-Za-z,]+$", "", line).strip()
-            if name and name != "Certificate Nickname":
-                names.append(name)
+            m = re.match(r"^(.*?)\s{2,}([A-Za-z,]*)$", line)
+            if m:
+                name = m.group(1).strip()
+                if name:
+                    names.append(name)
 
         result = []
         for name in names:
@@ -689,18 +700,24 @@ class AutoFirmaCore:
         )
         if p.returncode != 0:
             return {}
+        lines = p.stdout.splitlines()
+        header = next(
+            (i for i, line in enumerate(lines)
+             if "Certificate Nickname" in line and "Trust Attributes" in line),
+            None,
+        )
+        if header is None:
+            return {}
         flags = {}
-        for line in p.stdout.splitlines()[3:]:
+        for line in lines[header + 1:]:
             line = line.rstrip()
-            if not line:
+            if not line or set(line) <= {"-", " "}:
                 continue
-            m = re.match(r"^(.*\S)\s+([A-Za-z,]*)$", line)
-            if not m:
-                continue
-            name, trust = m.group(1).strip(), m.group(2)
-            if name == "Certificate Nickname":
-                continue
-            flags[name] = trust.split(",")[0] if trust else ""
+            m = re.match(r"^(.*?)\s{2,}([A-Za-z,]*)$", line)
+            if m:
+                name, trust = m.groups()
+                name = name.strip()
+                flags[name] = trust.split(",")[0] if trust else ""
         return flags
 
     def trust_root_cert(self, log=lambda t: None, status=lambda n, v: None):
