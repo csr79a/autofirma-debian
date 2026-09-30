@@ -86,7 +86,7 @@ class AutoFirmaCore:
 
     def _run(self, args, *, sudo=False, input_text=None, check=True):
         if sudo:
-            args = ["pkexec"] + list(args)
+            args = ["pkexec", "--disable-internal-agent"] + list(args)
         return subprocess.run(
             args,
             input=(input_text.encode() if input_text is not None else None),
@@ -128,7 +128,15 @@ class AutoFirmaCore:
         p = subprocess.run(
             ["apt-cache", "policy", package],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            env={**os.environ, "LC_ALL": "C"},
         )
+        if p.returncode != 0:
+            detail = p.stderr.strip() or "sin detalles."
+            raise RuntimeError(
+                f"apt-cache no pudo consultar «{package}» (código {p.returncode}).
+
+{detail}"
+            )
         for line in p.stdout.splitlines():
             line = line.strip()
             if line.startswith("Candidato:") or line.startswith("Candidate:"):
@@ -213,7 +221,13 @@ class AutoFirmaCore:
             raise RuntimeError("El paquete se instaló, pero no existe el ejecutable /usr/bin/AutoFirma.")
         if not Path("/usr/lib/Autofirma").exists():
             raise RuntimeError("El paquete se instaló, pero falta /usr/lib/Autofirma.")
-        p = subprocess.run([autofirma, "-help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+        try:
+            p = subprocess.run([autofirma, "-help"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=20)
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                "AutoFirma no respondió dentro de 20 segundos durante la verificación. "
+                "Cierra cualquier instancia de AutoFirma y vuelve a intentarlo."
+            ) from exc
         output = (p.stdout + p.stderr).decode(errors="replace")
         if p.returncode != 0:
             raise RuntimeError("AutoFirma está instalada pero no puede ejecutarse con la Java disponible.\n\n" + output[-2000:])
