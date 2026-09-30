@@ -10,8 +10,7 @@ en navegadores...) está portada 1:1; solo cambia la capa de interfaz
 (Tkinter/ttk -> PyQt6) y el mecanismo de concurrencia
 (threading+queue+polling -> QThread + señales).
 
-Dependencias del sistema: las mismas que la versión Tkinter (pkexec,
-policykit-1, libnss3-tools, openssl, curl, Java) más el paquete Debian
+Dependencias del sistema: pkexec, polkitd, libnss3-tools, openssl, curl, Java) más el paquete Debian
 `python3-pyqt6` en vez de `python3-tk`. El lanzador
 `instalar_autofirma_qt.sh` comprueba e instala esta dependencia igual
 que el original hace con python3-tk.
