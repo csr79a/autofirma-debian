@@ -650,6 +650,7 @@ class AutoFirmaCore:
         firefox_roots = [
             xdg_config_home / "mozilla" / "firefox",
             Path.home() / ".mozilla" / "firefox",
+            Path.home() / ".var" / "app" / "org.mozilla.firefox" / ".mozilla" / "firefox",
         ]
 
         vistos = set()
