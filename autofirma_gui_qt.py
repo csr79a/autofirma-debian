@@ -86,7 +86,7 @@ class OfficialCertificateExpiredError(RuntimeError):
 # =======================================================================
 
 class AutoFirmaCore:
-    JRE_CANDIDATES = ["openjdk-17-jre", "openjdk-21-jre"]
+    JRE_CANDIDATES = ["openjdk-17-jre", "openjdk-21-jre", "default-jre-headless"]
 
     # ---------- Helpers de proceso ----------
 
@@ -134,7 +134,7 @@ class AutoFirmaCore:
     def _require_pkexec(self):
         if not self._command_exists("pkexec"):
             raise RuntimeError(
-                "No se encuentra pkexec. Instala policykit-1 o ejecuta la "
+                "No se encuentra pkexec. Instala pkexec y polkitd o ejecuta la "
                 "aplicación desde un entorno Debian con PolicyKit disponible."
             )
 
@@ -165,9 +165,7 @@ class AutoFirmaCore:
         if p.returncode != 0:
             detail = p.stderr.strip() or "sin detalles."
             raise RuntimeError(
-                f"apt-cache no pudo consultar «{package}» (código {p.returncode}).
-
-{detail}"
+                f"apt-cache no pudo consultar «{package}» (código {p.returncode}).\n\n{detail}"
             )
         for line in p.stdout.splitlines():
             line = line.strip()
