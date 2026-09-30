@@ -57,9 +57,9 @@ Dependencias principales:
   ```bash
   sudo apt install python3-pyqt6
   ```
-- PolicyKit / `pkexec` (paquete `policykit-1`). Es el mecanismo que usa la aplicación para pedir la contraseña de administrador con una ventana gráfica (en vez de `sudo` en terminal) al instalar/actualizar AutoFirma o instalar `python3-pyqt6`. Si falta el paquete, o el servicio `polkitd` no está corriendo en la sesión, aparece el error "No se encuentra pkexec. Instala policykit-1 o ejecuta la aplicación desde un entorno Debian con PolicyKit disponible." al pulsar cualquier botón que necesite privilegios. `instalar_autofirma_qt.sh` comprueba esto al arrancar e intenta instalar `policykit-1` automáticamente con `sudo apt install policykit-1` si falta. Nota: si el paquete ya estaba instalado pero el servicio no había arrancado en la sesión actual (por ejemplo, tras una instalación reciente sin reiniciar sesión), el error puede aparecer igualmente hasta cerrar sesión o reiniciar; una actualización del sistema (`apt upgrade`) o un reinicio posterior suele resolverlo sin intervención adicional. Instalación manual:
+- PolicyKit / `pkexec` (paquete `pkexec y polkitd`). Es el mecanismo que usa la aplicación para pedir la contraseña de administrador con una ventana gráfica (en vez de `sudo` en terminal) al instalar/actualizar AutoFirma o instalar `python3-pyqt6`. Si falta el paquete, o el servicio `polkitd` no está corriendo en la sesión, aparece el error "No se encuentra pkexec. Instala pkexec y polkitd o ejecuta la aplicación desde un entorno Debian con PolicyKit disponible." al pulsar cualquier botón que necesite privilegios. `instalar_autofirma_qt.sh` comprueba esto al arrancar e intenta instalar `pkexec y polkitd` automáticamente con `sudo apt install pkexec polkitd` si falta. Nota: si el paquete ya estaba instalado pero el servicio no había arrancado en la sesión actual (por ejemplo, tras una instalación reciente sin reiniciar sesión), el error puede aparecer igualmente hasta cerrar sesión o reiniciar; una actualización del sistema (`apt upgrade`) o un reinicio posterior suele resolverlo sin intervención adicional. Instalación manual:
   ```bash
-  sudo apt install policykit-1
+  sudo apt install pkexec polkitd
   ```
 - `curl`/red de Python
 - `unzip`
@@ -135,7 +135,7 @@ Si `firmaelectronica.gob.es` presenta temporalmente un certificado HTTPS caducad
 
 El instalador instala automáticamente, si faltan, las dependencias necesarias para ejecutar AutoFirma en Debian:
 
-- Una JRE completa (no headless). Se prueba `openjdk-17-jre` primero y, si APT no ofrece candidato para ese paquete en el sistema (Debian retira versiones antiguas de OpenJDK de testing/unstable al promocionar una nueva por defecto), se recurre a `openjdk-21-jre`. La elección se hace en tiempo de ejecución contra `apt-cache policy`, nunca se asume un nombre de paquete fijo.
+- Una JRE disponible en APT. Se prueban `openjdk-17-jre` y `openjdk-21-jre` y, como último recurso, `default-jre-headless`. La elección se hace en tiempo de ejecución con `apt-cache policy`, usando `LC_ALL=C` y comprobando el código de salida.
 - `libnss3-tools`.
 - `curl` para la ruta de recuperación de la descarga oficial mientras el certificado HTTPS del portal esté caducado.
 
@@ -160,3 +160,14 @@ chmod +x instalar_autofirma_qt.sh
 ```
 
 Probada en máquina real: funciona correctamente.
+
+
+## Robustez de la versión PyQt6
+
+El lanzador comprueba que el intérprete Python sea 3.9 o superior antes de iniciar la aplicación. No se fija una versión concreta de PyQt6 en el repositorio: se utiliza el paquete `python3-pyqt6` proporcionado por Debian. Las versiones recientes de PyQt6 publicadas upstream requieren Python 3.9 o superior, y las versiones más nuevas pueden elevar ese mínimo; el paquete de Debian es quien determina la versión disponible en cada suite. citeturn2search0turn2search1
+
+## PolicyKit en Debian actual
+
+El proyecto comprueba `pkexec` y `polkitd` por separado. En Debian moderno, `policykit-1` es un paquete transitorio que depende de ambos, mientras que `pkexec` y `polkitd` son paquetes separados. Por ello el lanzador instala directamente `pkexec polkitd` cuando faltan. citeturn1search0turn1search11
+
+Durante operaciones APT largas, la GUI muestra en tiempo real las líneas que devuelve `apt-get`. Si `apt-get update` falla durante la preparación de dependencias, se muestra una advertencia y se intenta continuar con los índices disponibles; si la instalación necesaria falla, la operación termina con el código y la salida disponibles para el usuario.
