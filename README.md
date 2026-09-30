@@ -164,7 +164,7 @@ Probada en máquina real: funciona correctamente.
 
 ## Robustez de la versión PyQt6
 
-El lanzador comprueba que el intérprete Python sea 3.9 o superior antes de iniciar la aplicación. No se fija una versión concreta de PyQt6 en el repositorio: se utiliza el paquete `python3-pyqt6` proporcionado por Debian. Las versiones recientes de PyQt6 publicadas upstream requieren Python 3.9 o superior, y las versiones más nuevas pueden elevar ese mínimo; el paquete de Debian es quien determina la versión disponible en cada suite. citeturn2search0turn2search1
+El lanzador comprueba que el intérprete Python sea 3.10 o superior antes de iniciar la aplicación. No se fija una versión concreta de PyQt6 en el repositorio: se utiliza el paquete `python3-pyqt6` proporcionado por Debian. Las versiones recientes de PyQt6 publicadas upstream requieren Python 3.10 o superior, y las versiones más nuevas pueden elevar ese mínimo; el paquete de Debian es quien determina la versión disponible en cada suite. citeturn2search0turn2search1
 
 ## PolicyKit en Debian actual
 
