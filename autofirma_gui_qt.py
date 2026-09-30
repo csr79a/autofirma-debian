@@ -89,17 +89,43 @@ class AutoFirmaCore:
 
     # ---------- Helpers de proceso ----------
 
-    def _run(self, args, *, sudo=False, input_text=None, check=True):
+    def _run(self, args, *, sudo=False, input_text=None, check=True, log=None):
         if sudo:
             args = ["pkexec", "--disable-internal-agent"] + list(args)
-        return subprocess.run(
+        if log is None:
+            return subprocess.run(
+                args,
+                input=(input_text.encode() if input_text is not None else None),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=check,
+                text=False,
+            )
+
+        process = subprocess.Popen(
             args,
-            input=(input_text.encode() if input_text is not None else None),
+            stdin=subprocess.PIPE if input_text is not None else None,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            check=check,
-            text=False,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
         )
+        if input_text is not None and process.stdin is not None:
+            process.stdin.write(input_text)
+            process.stdin.close()
+        lines = []
+        for line in process.stdout or ():
+            line = line.rstrip()
+            if line:
+                lines.append(line)
+                log(line)
+        returncode = process.wait()
+        result = subprocess.CompletedProcess(
+            args, returncode, "\n".join(lines).encode(), b""
+        )
+        if check and returncode != 0:
+            raise subprocess.CalledProcessError(returncode, args, output=result.stdout, stderr=result.stderr)
+        return result
 
     def _command_exists(self, command):
         return shutil.which(command) is not None
@@ -184,10 +210,11 @@ class AutoFirmaCore:
             return False
 
         log("Actualizando índice de APT…")
-        p = self._run(["apt-get", "update"], sudo=True, check=False)
+        p = self._run(["apt-get", "update"], sudo=True, check=False, log=log)
         if p.returncode != 0:
-            detail = p.stderr.decode(errors="replace").strip()
-            raise RuntimeError("No se pudo actualizar APT para instalar las dependencias." + (f"\n\n{detail}" if detail else ""))
+            log("AVISO: apt-get update terminó con error; se continuará usando los índices disponibles.")
+            if p.stdout:
+                log(p.stdout.decode(errors="replace")[-2000:])
 
         missing = []
         if necesita_java:
@@ -199,7 +226,7 @@ class AutoFirmaCore:
         missing = list(dict.fromkeys(missing))
 
         log("Instalando dependencias necesarias: " + ", ".join(missing))
-        p = self._run(["apt-get", "install", "-y"] + missing, sudo=True, check=False)
+        p = self._run(["apt-get", "install", "-y"] + missing, sudo=True, check=False, log=log)
         if p.returncode != 0:
             detail = p.stderr.decode(errors="replace").strip()
             raise RuntimeError("No se pudieron instalar las dependencias de AutoFirma." + (f"\n\n{detail}" if detail else ""))
@@ -493,7 +520,19 @@ class AutoFirmaCore:
                 install_args.append("--reinstall")
             install_args.append(str(deb))
 
-            self._run(install_args, sudo=True, check=True)
+            p = self._run(install_args, sudo=True, check=False, log=log)
+            if p.returncode != 0:
+                detail = p.stdout.decode(errors="replace").strip()
+                if p.returncode == 126:
+                    raise RuntimeError(
+                        "No se pudo ejecutar pkexec para instalar AutoFirma (código 126). "
+                        "Comprueba que polkitd y un agente gráfico de autenticación estén activos."
+                        + (f"\n\n{detail}" if detail else "")
+                    )
+                raise RuntimeError(
+                    f"apt-get no pudo instalar AutoFirma (código {p.returncode})."
+                    + (f"\n\n{detail}" if detail else "")
+                )
 
             autofirma_cmd = self.verify_autofirma_installation(log)
             log("AutoFirma instalada/actualizada correctamente.")
